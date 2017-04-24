@@ -1,0 +1,96 @@
+<!doctype html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>Exo-bot Game</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link href="https://fonts.googleapis.com/css?family=Assistant:200" rel="stylesheet">
+	<link rel="stylesheet" href="styles/exploration.css" />
+	<link rel="icon" href="images/favicon-city.ico" type="image/x-icon" />
+</head>
+<body>
+
+<div class="body">
+	<section id="stage"></section>
+	<section class="mask"></section>
+	<section class="title">
+		Exo-bot
+	</section>
+	<section class="log closed">
+		<ol>
+			<!-- added by js -->
+		</ol>
+	</section>
+	<section class="location closed">
+		<dl class="planet-list">
+			<!-- added by js -->
+		</dl>
+		<dl class="building-list">
+			<!-- added by js -->
+		</dl>
+	</section>
+	<section class="inventory closed">
+		<dl>
+			<!-- Add with js -->
+		</dl>
+	</section>
+	<section class="help closed">
+		<div>Up | w = Unload</div>
+		<div>Down | s = Load, Drill</div>
+		<div>Left | Right | a | d = Move</div>
+		<div>Tab = Build</div>
+		<div>Space = Jump</div>
+		<div>Esc = Pause &amp; Credits</div>
+		<div>X = Toggle display</div>
+	</section>
+	<section class="credits closed">
+		<h2>About</h2>
+		<p>v0.1.2-ld38</p>
+		<p>
+			Made in 48 hours for <a href="https://ldjam.com/events/ludum-dare/38/exo-bot" target="_blank">Ludum Dare #38</a>,
+			a game jam with theme of "Small World"
+		</p>
+		<h2>Credits</h2>
+		<p>
+			By Luke Nickerson <a href="https://twitter.com/deathraygames" target="_blank">@deathraygames</a>
+			<br />Copyright &copy; 2017
+		</p>
+		<p>
+			<a href="https://github.com/deathraygames/exo-bot" target="_blank">Code is open-source on GitHub.</a>
+			<br />OFL fonts from Google Fonts
+		</p>
+		<p>
+			<a href="http://deathraygames.com/" target="_blank">http://deathraygames.com/</a>
+		</p>
+	</section>
+	<section class="build closed">
+		<h2>Build</h2>
+		<dl>
+			<!-- add with js -->
+		</dl>
+	</section>
+	<section class="win closed">
+		<h2>You Win!</h2>
+		<p>
+			Congratulations! The planet is now ready for non-robotic colonists.
+		</p>
+		<p>
+			Refresh the page to launch to a new planet, or press ESC for credits.
+		</p>
+	</section>
+</div>
+
+
+<div class="scripts">
+	<script src="https://rocket-boots.github.io/rocket-boots/scripts/rocketboots/core.js"></script>
+	<script> RocketBoots.useGitHubScripts(); </script>
+
+	<script src="scripts/exo-bot-data.js"></script>
+	<script src="scripts/exo-bot-classes.js"></script>
+	<script src="scripts/exo-bot-game.js"></script>
+	<script src="http://deathraygames.com/js/ga.js"></script>
+</div>
+
+
+</body>
+</html>
