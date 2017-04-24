@@ -3,18 +3,13 @@ RocketBoots.loadComponents([
 	"Coords",
 	"ImageBank",
 	"StateMachine",
-	//"data_delivery",
 	"Dice",
 	"Loop",
-	//"entity",
 	"Stage",
 	"World",
-	"Incrementer",
 	"Stage",
 	"Storage",
 	"SoundBank",
-	"Notifier",
-	"Walkthrough",
 	"Keyboard",
 	"Physics"
 ]).ready(function(){
@@ -52,19 +47,16 @@ RocketBoots.loadComponents([
 		instantiateComponents: [
 			{"state": "StateMachine"},
 			{"loop": "Loop"},
-			{"incrementer": "Incrementer"},
 			{"dice": "Dice"},
 			{"images": "ImageBank"},
 			{"sounds": "SoundBank"},
-			{"notifier": "Notifier"},
 			{"storage": "Storage"},
-			{"walkthrough": "Walkthrough"},
 			{"world": "World"},
 			{"stage": "Stage"},
 			{"keyboard": "Keyboard"},
 			{"physics": "Physics"}
 		],
-		version: "v0.1.2-ld38"
+		version: "v0.1.3-ld38"
 	});
 
 	g.data = window.data; // from exo-bot-data.js
