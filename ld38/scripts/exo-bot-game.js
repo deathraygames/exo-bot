@@ -238,6 +238,17 @@ RocketBoots.loadComponents([
 	g.state.transition("preload");
 
 
+	g.cheat = function () {
+		g.bot.inventory["carbon"] += 1000;
+		g.bot.inventory["silicon"] += 1000;
+		g.bot.inventory["gold"] += 1000;
+		g.bot.inventory["metal parts"] += 1000;
+		g.bot.inventory["energon"] += 1000;
+		g.bot.inventory["electronics"] += 1000;
+		g.bot.inventory["solar cells"] += 1000;
+	};
+
+
 	//==== Hoisted Functions
 
 	function gotoGame () {
@@ -303,17 +314,6 @@ RocketBoots.loadComponents([
 		g.bot.inventory = {};
 		populateInventory(g.bot.inventory);
 		g.bot.inventory["metal parts"] = STARTING_PARTS;
-
-
-		// TODO: remove this
-		g.bot.inventory["carbon"] += 1000;
-		g.bot.inventory["silicon"] += 1000;
-		g.bot.inventory["gold"] += 1000;
-		g.bot.inventory["metal parts"] += 1000;
-		g.bot.inventory["energon"] += 1000;
-		g.bot.inventory["electronics"] += 1000;
-		g.bot.inventory["solar cells"] += 1000;
-
 
 		// Setup planet's ore deposits
 		setupOreDeposits();
