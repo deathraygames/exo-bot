@@ -38,6 +38,16 @@ dl.cost {
 	font-size: 80%;
 }
 
+a {
+	color: #aaddff;
+	text-decoration: none;
+}
+	a:hover {
+		text-decoration: underline;
+	}
+
+
+
 .body {
 	z-index: 0;
 	width: 100%;
