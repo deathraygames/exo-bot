@@ -25,14 +25,24 @@ RocketBoots.loadComponents([
 		MOON_RADIUS		= (PLANET_RADIUS/10),
 		ORBIT_RADIUS	= (PLANET_RADIUS * 1.75),
 		LOOP_DELAY 		= 100,   	// 10 = 1/100th of a second (better than 60 fps)
-		RENDER_DELAY 	= 100, 		// ms
+		RENDER_DELAY 	= 500, 		// ms
+		ACTION_DELAY	= 400, 		// ms
+		BUILDING_PROCESS_DELAY 	= 1000, //ms
 		TWO_PI			= Math.PI * 2,
 		BOT_BODY_MODES  = ["drive", "drill"],
 		STARTING_PARTS	= 50,
-		BUILDING_HEIGHT = 50,
-		BUILDING_WIDTH 	= 70,
+		BUILDING_HEIGHT = 80, // 40
+		BUILDING_WIDTH 	= 80, // 40
 		BUILDING_SCAN 	= BUILDING_WIDTH,
-		ORE_SCAN 		= PLANET_RADIUS
+		ORE_SCAN 		= PLANET_RADIUS,
+		LOAD_AMOUNT					= 10,
+		BOT_MAX_RESOURCE			= 500,
+		BUILDING_MAX_RESOURCE 		= 1000,
+		BASE_DRILL_AMOUNT			= 1,
+		RADIUS_LOSS_PER_DRILL		= 0.1,
+		DRILL_DISTANCE_THRESHOLD 	= PLANET_RADIUS / 10,
+		DRILL_DISTANCE_MAX			= PLANET_RADIUS
+
 	;
 
 	//==== GAME
@@ -60,8 +70,8 @@ RocketBoots.loadComponents([
 	g.data = window.data; // from exo-bot-data.js
 	g.bot = new RocketBoots.Entity({
 		name: "Exo-bot",
-		size: {x: 17, y: 10},
-		pos: {x: 0, y: (PLANET_RADIUS * 1.1)},
+		size: {x: 32, y: 32},
+		pos: {x: 0, y: (PLANET_RADIUS * 2)},
 		color: "#ccccdd",
 		bodyMode: "drive",
 		targetOreDeposit: null,
@@ -75,7 +85,9 @@ RocketBoots.loadComponents([
 		color: "#553322",
 		isImmovable: true,
 		draw: "circle",
-		pollution: 0
+		pollution: 0,
+		atmosphere: 0,
+		signal: 0
 	});
 	g.moon = new RocketBoots.Entity({
 		name: "Mun",
@@ -95,10 +107,19 @@ RocketBoots.loadComponents([
 	g.state.addStates({
 		"preload": {
 			start: function(){
+				var imageMap = {
+					"bot_drive": "bot/bot_32.png",
+					"bot_drill": "bot/bot_drill_32.png"
+				};
+				_.forEach(g.data.buildings, function(building, buildingKey){
+					imageMap[buildingKey] = "buildings/" + building.image + ".png";
+				});
+
 				setup();
-				//g.images.load(imageMap, function(){
-				//});
-				g.state.transition("intro");
+				g.images.load(imageMap, function(){
+					g.bot.image = g.images.get("bot_drive");
+					g.state.transition("intro");
+				});
 			}
 		},
 		"intro": {
@@ -144,7 +165,22 @@ RocketBoots.loadComponents([
 						"SPACE": jump,
 						"LEFT": moveLeft,
 						"RIGHT": moveRight,
-						"DOWN": toggleBotBodyMode,
+						"DOWN": function(){
+							if (hasTargetBuilding()) {
+								unloadFromBuilding(g.bot.targetBuilding);
+							} else {
+								toggleBotBodyMode();
+								//switchBotBodyMode("drill");
+							}
+						},
+						"UP": function(){
+							if (hasTargetBuilding()) {
+								loadIntoBuilding(g.bot.targetBuilding);
+							} else {
+								toggleBotBodyMode();
+								//switchBotBodyMode("drive");
+							}
+						},
 						"ESC": 	function gotoMenu () {
 							g.state.transition("menu");
 						},
@@ -188,6 +224,13 @@ RocketBoots.loadComponents([
 				$('.inventory').addClass('closed');
 				$('.build, .mask').addClass('closed');
 			}
+		},
+		"win": {
+			start: function(){
+				$('.win, .mask').removeClass('closed');
+			}, end: function(){
+				$('.win, .mask').addClass('closed');
+			}
 		}
 	});
 
@@ -213,8 +256,12 @@ RocketBoots.loadComponents([
 		fixRotation(g.bot);
 		g.moon.pos.r = ORBIT_RADIUS;
 		g.stage.draw();
-		drill();
 		scanNearby();
+
+		// Check for win // TODO: move somewhere else
+		if (g.planet.signal > 100 && g.planet.atmosphere > 100 && g.planet.atmosphere > g.planet.pollution) {
+			g.state.transition("win");
+		}
 	}
 
 	function setup () {
@@ -243,7 +290,10 @@ RocketBoots.loadComponents([
 		layer.connectEntities(g.world.entities.all);
 
 		// Loop
-		g.loop.set(quickLoop, LOOP_DELAY).addAction(renderDisplay, RENDER_DELAY);
+		g.loop.set(quickLoop, LOOP_DELAY)
+			.addAction(renderDisplay, RENDER_DELAY)
+			.addAction(botAction, ACTION_DELAY)
+			.addAction(buildingProcessing, BUILDING_PROCESS_DELAY);
 
 		// Setup Physics
 		g.physics.isObjectGravityOn = true;
@@ -253,6 +303,17 @@ RocketBoots.loadComponents([
 		g.bot.inventory = {};
 		populateInventory(g.bot.inventory);
 		g.bot.inventory["metal parts"] = STARTING_PARTS;
+
+
+		// TODO: remove this
+		g.bot.inventory["carbon"] += 1000;
+		g.bot.inventory["silicon"] += 1000;
+		g.bot.inventory["gold"] += 1000;
+		g.bot.inventory["metal parts"] += 1000;
+		g.bot.inventory["energon"] += 1000;
+		g.bot.inventory["electronics"] += 1000;
+		g.bot.inventory["solar cells"] += 1000;
+
 
 		// Setup planet's ore deposits
 		setupOreDeposits();
@@ -265,10 +326,17 @@ RocketBoots.loadComponents([
 		_.each(g.data.items, function(itemType){
 			invObj[itemType.key] = 0;
 		});
+		invObj["signal"] = 0;
+		invObj["atmosphere"] = 0;
+		invObj["pollution"] = 0;
 		return invObj;
 	}
 
-	function log (m) {
+	function log (m, ignoreDups) {
+		// Do we already have that message?
+		if (ignoreDups && g.logs[g.logs.length - 1] === m) {
+			return;
+		}
 		g.logs.push(m);
 		if (g.logs.length > 5) {
 			g.logs.shift();
@@ -280,7 +348,6 @@ RocketBoots.loadComponents([
 	function setupOreDeposits() {
 		var n = ORE_DEPOSITS;
 		g.oreDeposits = [];
-
 		while (n--) {
 			let type = _.sample(g.data.ores);
 			let dep = new RocketBoots.Entity({
@@ -288,7 +355,7 @@ RocketBoots.loadComponents([
 				color: type.color,
 				oreType: type
 			});
-			let r = g.dice.getRandomIntegerBetween(1, (PLANET_RADIUS - dep.radius));
+			let r = g.dice.getRandomIntegerBetween(Math.round(PLANET_RADIUS/20), (PLANET_RADIUS - dep.radius));
 			let theta = Math.random() * TWO_PI;
 			dep.pos.setByPolarCoords(r, theta);
 			dep.draw = "circle"; // TODO: make this a custom function
@@ -299,6 +366,10 @@ RocketBoots.loadComponents([
 		}
 	}
 
+
+
+	//==== RENDER AND DRAW
+
 	function renderDisplay () {
 		renderInventory();
 		renderLocation();
@@ -307,7 +378,13 @@ RocketBoots.loadComponents([
 	function renderLocation() {
 		h = '';
 		if (g.planet.pollution > 0) {
-			h += '<div><dt>Pollution</dt><dd>' + g.planet.pollution + '</dd></div>';
+			h += '<div><dt>Pollution</dt><dd>' + Math.floor(g.planet.pollution) + '</dd></div>';
+		}
+		if (g.planet.atmosphere > 0) {
+			h += '<div><dt>Atmosphere</dt><dd>' + Math.floor(g.planet.atmosphere) + '</dd></div>';
+		}
+		if (g.planet.signal > 0) {
+			h += '<div><dt>Signal</dt><dd>' + Math.floor(g.planet.signal) + '</dd></div>';
 		}
 		$('.planet-list').html(h);
 
@@ -316,12 +393,12 @@ RocketBoots.loadComponents([
 			let bt =  g.bot.targetBuilding.buildingType;
 			h += (
 				'<div class="building-name">' + bt.key + '</div>'
-				+ '<div><dt>Uses</dt><dd>' + _.flatMap(bt.uses) + '</dd></div>'
-				+ '<div><dt>Produces</dt><dd>' + _.flatMap(bt.produces) + '</dd></div>'
+				+ '<div class="building-uses"><dt>Uses</dt><dd>' + _.keys(bt.uses).join(', ') + '</dd></div>'
+				+ '<div class="building-produces"><dt>Produces</dt><dd>' + _.keys(bt.produces).join(', ') + '</dd></div>'
 			);
 			_.each(g.bot.targetBuilding.inventory, function(resourceAmount, resourceKey){
 				if (resourceAmount > 0) {
-					h += '<div><dt>' + resourceKey + '</dt><dd>' + resourceAmount + '</dd></div>';
+					h += '<div><dt>' + resourceKey + '</dt><dd>' + Math.floor(resourceAmount) + '</dd></div>';
 				}
 			});
 		}
@@ -343,7 +420,7 @@ RocketBoots.loadComponents([
 			if (quantity > 0) {
 				h += (
 					'<div>'
-						+ '<dt>' + key + '</dt><dd>' + quantity + '</dd>'
+						+ '<dt>' + key + '</dt><dd>' + Math.floor(quantity) + '</dd>'
 					+ '</div>'
 				);
 			}
@@ -370,9 +447,17 @@ RocketBoots.loadComponents([
 	}
 
 	function drawBot (ctx, entStageCoords, entStageCoordsOffset, entStageSize, layer, ent) {
-		ctx.fillStyle = ent.color; // '#ffff66';
-		ctx.fillRect(entStageCoordsOffset.x, entStageCoordsOffset.y, 
-					entStageSize.x, entStageSize.y);
+
+		if (ent.bodyMode === "drill") {
+			ctx.drawImage( g.images.get("bot_drill"),
+				entStageCoordsOffset.x, entStageCoordsOffset.y,
+				entStageSize.x, entStageSize.y);
+		} else {
+			ctx.drawImage( ent.image,
+				entStageCoordsOffset.x, entStageCoordsOffset.y,
+				entStageSize.x, entStageSize.y);			
+		}
+
 		if (ent.targetOreDeposit !== null) {
 			// TODO: Fix
 			/*
@@ -407,16 +492,26 @@ RocketBoots.loadComponents([
 		return minDistance;
 	}
 
+	function hasTargetBuilding () {
+		return (g.bot.targetBuilding !== null);
+	}
+
 	function fixRotation (ent) {
 		ent.rotation = (ent.pos.theta - (Math.PI/2)) * -1;
+	}
+
+	function botAction () {
+		drill();
 	}
 
 	function moveLeft () {
 		move(1);
 	}
+
 	function moveRight () {
 		move(-1);
 	}
+
 	function move (n) {
 		if (g.bot.bodyMode !== "drive") {
 			return false;
@@ -439,11 +534,15 @@ RocketBoots.loadComponents([
 			return false;
 		}
 		console.log("Jump");
-		g.bot.force.r = 3000;
+		g.bot.force.r = 40000;
 	}
 
 	function drill () {
 		var bot = g.bot;
+		var drillAmount = BASE_DRILL_AMOUNT;
+		var freeSpace = BOT_MAX_RESOURCE;
+		var distance = 0;
+		var drillAmountMultiplier = 1;
 		if (bot.bodyMode !== "drill") {
 			return false;
 		}
@@ -451,14 +550,33 @@ RocketBoots.loadComponents([
 			return false;
 		}
 		if (bot.targetOreDeposit.radius <= 0) {
+			log("Depleted " + bot.targetOreDeposit.oreType.key + ".", true);
 			return false;
 		}
-		bot.targetOreDeposit.radius -= 0.1;
-		bot.inventory[bot.targetOreDeposit.oreType.key] += 1;
-		console.log("Drilling...", bot.targetOreDeposit.oreType.key);
+
+		distance = bot.targetOreDeposit.pos.getDistance(bot.pos);
+		drillAmountMultiplier = getDrillMultiplier(distance);
+		drillAmount *= drillAmountMultiplier;
+
+		freeSpace -= bot.inventory[bot.targetOreDeposit.oreType.key];
+		drillAmount = Math.min(drillAmount, freeSpace);
+		bot.targetOreDeposit.radius -= drillAmount * RADIUS_LOSS_PER_DRILL;
+		bot.inventory[bot.targetOreDeposit.oreType.key] += drillAmount;
+
+		log("Drilling " + bot.targetOreDeposit.oreType.key + "..."
+			+ " speed: x" + drillAmountMultiplier + ", amount: +" + drillAmount, true);
 		if (bot.targetOreDeposit.radius <= 0) {
 			bot.targetOreDeposit.radius = 0;
 		}
+	}
+
+	function getDrillMultiplier (d) {
+		if (d < DRILL_DISTANCE_THRESHOLD) {
+			return 1;
+		} else if (d > DRILL_DISTANCE_MAX) {
+			return 0;
+		}
+		return Math.round( ((DRILL_DISTANCE_MAX - d) / DRILL_DISTANCE_MAX) * 100 )/100;
 	}
 
 	function toggleBotBodyMode () {
@@ -537,15 +655,108 @@ RocketBoots.loadComponents([
 			isMovable: true,
 			color: "#666",
 			buildingType: 	buildingType,
+			uses: 			buildingType.uses,
+			produces: 		buildingType.produces,
 			health: 		buildingType.maxHealth,
 			maxHealth: 		buildingType.maxHealth,
-			inventory: 		{}
+			inventory: 		{},
+			image: 			g.images.get(buildingKey)
 		});
 		populateInventory(building.inventory);
 		r = PLANET_RADIUS + (BUILDING_HEIGHT/2);
 		building.pos.setByPolarCoords(r, bot.pos.theta);
 		fixRotation(building);
 		g.world.putIn(building, ["buildings"], true);
+		log("Built " + buildingKey + ".");
 	}
+
+	function checkFullInventory () {
+		var bot = g.bot;
+		var fullResources = [];
+		_.each(bot.inventory, function(resourceAmount, resourceKey){
+			if (resourceAmount >= BOT_MAX_RESOURCE) {
+				fullResources.push(resourceKey);
+			}
+		});
+		if (fullResources.length > 0) {
+			log("Full inventory for: " + fullResources.join(", "));
+			return true;
+		}
+		return false;
+	}
+
+	function unloadFromBuilding(building) {
+		var bot = g.bot;
+		var count = 0;
+		_.each(building.inventory, function(resourceAmount, resourceKey){
+			let freeSpace = BOT_MAX_RESOURCE - bot.inventory[resourceKey];
+			let loadAmount = Math.min(LOAD_AMOUNT, freeSpace, resourceAmount);
+			building.inventory[resourceKey] -= loadAmount;
+			bot.inventory[resourceKey] += loadAmount;
+			count += loadAmount;
+		});
+		log("Unloaded " + count + " resources.");
+		checkFullInventory();
+		renderLocation();
+		renderInventory();
+	}
+
+	function loadIntoBuilding(building) {
+		var bot = g.bot;
+		var count = 0;
+		_.each(bot.inventory, function(resourceAmount, resourceKey){
+			if (typeof building.uses[resourceKey] === 'number' && building.uses[resourceKey] > 0) {
+				let freeSpace = BUILDING_MAX_RESOURCE - building.inventory[resourceKey];
+				let loadAmount = Math.min(LOAD_AMOUNT, freeSpace, resourceAmount);
+				building.inventory[resourceKey] += loadAmount;
+				bot.inventory[resourceKey] -= loadAmount;
+				count += loadAmount;
+			}
+		});
+		log("Loaded " + count + " resources into the building.");
+		checkFullInventory();
+		renderLocation();
+		renderInventory();
+	}
+
+	function buildingProcessing () {
+		_.each(g.world.entities.buildings, function(building){
+			var canAfford = true;
+			_.each(building.buildingType.uses, function(resourceAmount, resourceKey){
+				if (resourceKey === "sunlight") {
+					// ignore... always have sunlight
+				} else if (resourceKey === "pollution") {
+					// always have pollution .... TODO: fix this?
+				} else if (building.inventory[resourceKey] < resourceAmount) {
+					canAfford = false;
+				}
+			});
+			if (canAfford) {
+				// Use up the resources
+				_.each(building.buildingType.uses, function(resourceAmount, resourceKey){
+					if (resourceKey === "sunlight") {
+						// ignore... always have sunlight
+					} else if (resourceKey === "pollution") {
+						g.planet.pollution -= resourceAmount;
+					} else {
+						building.inventory[resourceKey] -= resourceAmount;
+					}
+				});
+				// Produce stuff
+				_.each(building.buildingType.produces, function(resourceAmount, resourceKey){
+					building.inventory[resourceKey] += resourceAmount;
+				});
+			}
+			// give air (pollution and atmosphere) to the world
+			g.planet.pollution += building.inventory.pollution;
+			g.planet.atmosphere += building.inventory.atmosphere;
+			g.planet.signal += building.inventory.signal;
+			building.inventory.pollution = 0;
+			building.inventory.atmosphere = 0;
+			building.inventory.signal = 0;
+			
+		});
+	}
+
 
 }).init();

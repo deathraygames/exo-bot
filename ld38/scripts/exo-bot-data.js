@@ -46,6 +46,7 @@ window.data = (function(){
 	const buildings = {
 		"combustion factory": {
 			key: "combustion factory",
+			image: "combustion_factory_80",
 			maxHealth: 500,
 			cost: {
 				"metal parts": 50
@@ -60,6 +61,7 @@ window.data = (function(){
 		}, 
 		"combustion power plant": {
 			key: "combustion power plant",
+			image: "combustion_factory_80",
 			maxHealth: 100,
 			cost: {
 				"metal parts": 100
@@ -74,6 +76,7 @@ window.data = (function(){
 		},
 		"electronics factory": {
 			key: "electronics factory",
+			image: "generic_80",
 			maxHealth: 80,
 			cost: {
 				"metal parts": 100,
@@ -90,6 +93,7 @@ window.data = (function(){
 		},
 		"solar cell factory": {
 			key: "solar cell factory",
+			image: "generic_80",
 			maxHealth: 100,
 			cost: {
 				"metal parts": 100
@@ -104,44 +108,59 @@ window.data = (function(){
 		},
 		"solar array": {
 			key: "solar array",
+			image: "solar_array_80",
 			maxHealth: 40,
 			cost: {
-				"metal parts": 100,
+				"metal parts": 200,
 				"solar cells": 100,
-				"electronics": 2
+				"electronics": 20
 			},
-			uses: { "sunlight": 1},
-			produces: {"energon": 1}
+			uses: { 
+				"sunlight": 1 
+			},
+			produces: {
+				"energon": 1
+			}
 		},
 		"terraformer": {
 			key: "terraformer",
+			image: "generic_80",
 			maxHealth: 60,
 			cost: {
-				"metal parts": 100,
-				"electronics": 10
+				"metal parts": 200,
+				"electronics": 10,
+				"energon": 50
 			},
 			uses: {
+				"energon": 1,
 				"pollution": 1
 			},
 			produces: {
-				"atmopshere": 1
+				"atmosphere": 1
 			}
 		},
 		"colonization beacon": {
 			key: "colonization beacon",
+			image: "solar_array_80",
 			maxHealth: 60,
 			cost: {
 				"metal parts": 100,
-				"electronics": 10,
-				"solar cells": 50
+				"electronics": 50,
+				"solar cells": 50,
+				"energon": 50
 			},
-			uses: {},
-			produces: {}
+			uses: {
+				"energon": 1
+			},
+			produces: {
+				"signal": 1
+			}
 		}
 	};
 	const buildingsOrder = [
 		"combustion factory", 
 		"combustion power plant", 
+		"electronics factory",
 		"solar cell factory",
 		"solar array",
 		"terraformer",

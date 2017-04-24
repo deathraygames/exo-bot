@@ -11,6 +11,9 @@ h2 {
 	font-weight: normal;
 	opacity: 0.75;
 }
+dl {
+	margin-top: 0;
+}
 dt {
 	display: inline-block;
 }
@@ -103,6 +106,13 @@ dl.cost {
 	right: 5%;
 	text-align: right;
 }
+	.building-uses,
+	.building-produces {
+		font-size: 80%;
+	}
+
+
+
 .inventory {
 	bottom: 5%;
 	right: 5%;
@@ -114,14 +124,16 @@ dl.cost {
 	opacity: 0.9;
 }
 .credits,
-.build {
+.build,
+.win {
 	box-sizing: border-box;
 	left: 50%;
 	padding: 2em;
 	background: rgba(0,0,0,0.5);
 }
 
-.credits {
+.credits,
+.win {
 	top: 25%;
 	width: 20em;
 	margin-left: -10em;
