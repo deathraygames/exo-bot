@@ -10,19 +10,23 @@ window.data = (function(){
 	const ores = {
 		"iron": {
 			key: "iron",
-			color: "#666"
+			color: "#666",
+			depositMultiplier: 1.5
 		},
 		"carbon": {
 			key: "carbon",
-			color: "#333"
+			color: "#333",
+			depositMultiplier: 1
 		},
 		"silicon": {
 			key: "silicon",
-			color: "#888"
+			color: "#888",
+			depositMultiplier: 1
 		}, 
 		"gold": {
 			key: "gold",
-			color: "#883"
+			color: "#883",
+			depositMultiplier: 0.8
 		}
 	};
 	const items = {
@@ -56,7 +60,8 @@ window.data = (function(){
 				"iron": 1
 			},
 			produces: {
-				"metal parts": 1
+				"metal parts": 1,
+				"pollution": 1
 			}
 		}, 
 		"combustion power plant": {

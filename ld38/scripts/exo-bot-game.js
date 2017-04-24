@@ -38,7 +38,7 @@ RocketBoots.loadComponents([
 		LOAD_AMOUNT					= 10,
 		BOT_MAX_RESOURCE			= 500,
 		BUILDING_MAX_RESOURCE 		= 1000,
-		BASE_DRILL_AMOUNT			= 1,
+		BASE_DRILL_AMOUNT			= 4,
 		RADIUS_LOSS_PER_DRILL		= 0.1,
 		DRILL_DISTANCE_THRESHOLD 	= PLANET_RADIUS / 10,
 		DRILL_DISTANCE_MAX			= PLANET_RADIUS
@@ -64,7 +64,7 @@ RocketBoots.loadComponents([
 			{"keyboard": "Keyboard"},
 			{"physics": "Physics"}
 		],
-		version: "v0.1.1-ld38"
+		version: "v0.1.2-ld38"
 	});
 
 	g.data = window.data; // from exo-bot-data.js
@@ -350,8 +350,10 @@ RocketBoots.loadComponents([
 		g.oreDeposits = [];
 		while (n--) {
 			let type = _.sample(g.data.ores);
+			let minR = Math.round(2 * type.depositMultiplier);
+			let maxR = Math.round(20 * type.depositMultiplier);
 			let dep = new RocketBoots.Entity({
-				radius: g.dice.getRandomIntegerBetween(1, 20),
+				radius: g.dice.getRandomIntegerBetween(minR, maxR),
 				color: type.color,
 				oreType: type
 			});
