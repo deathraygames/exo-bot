@@ -3,18 +3,13 @@ RocketBoots.loadComponents([
 	"Coords",
 	"ImageBank",
 	"StateMachine",
-	//"data_delivery",
 	"Dice",
 	"Loop",
-	//"entity",
 	"Stage",
 	"World",
-	"Incrementer",
 	"Stage",
 	"Storage",
 	"SoundBank",
-	"Notifier",
-	"Walkthrough",
 	"Keyboard",
 	"Physics"
 ]).ready(function(){
@@ -31,10 +26,11 @@ RocketBoots.loadComponents([
 		TWO_PI			= Math.PI * 2,
 		BOT_BODY_MODES  = ["drive", "drill"],
 		STARTING_PARTS	= 50,
-		BUILDING_HEIGHT = 80, // 40
-		BUILDING_WIDTH 	= 80, // 40
-		BUILDING_SCAN 	= BUILDING_WIDTH,
-		ORE_SCAN 		= PLANET_RADIUS,
+		BUILDING_HEIGHT 	= 80, // 40
+		BUILDING_WIDTH 		= 80, // 40
+		BUILDING_R_OFFSET	= 0,
+		BUILDING_SCAN 		= BUILDING_WIDTH,
+		ORE_SCAN_RANGE		= PLANET_RADIUS,
 		LOAD_AMOUNT					= 10,
 		BOT_MAX_RESOURCE			= 500,
 		BUILDING_MAX_RESOURCE 		= 1000,
@@ -52,19 +48,16 @@ RocketBoots.loadComponents([
 		instantiateComponents: [
 			{"state": "StateMachine"},
 			{"loop": "Loop"},
-			{"incrementer": "Incrementer"},
 			{"dice": "Dice"},
 			{"images": "ImageBank"},
 			{"sounds": "SoundBank"},
-			{"notifier": "Notifier"},
 			{"storage": "Storage"},
-			{"walkthrough": "Walkthrough"},
 			{"world": "World"},
 			{"stage": "Stage"},
 			{"keyboard": "Keyboard"},
 			{"physics": "Physics"}
 		],
-		version: "v0.1.2-ld38"
+		version: "v0.1.4"
 	});
 
 	g.data = window.data; // from exo-bot-data.js
@@ -116,6 +109,7 @@ RocketBoots.loadComponents([
 				});
 
 				setup();
+				$('.version').html(g.version);
 				g.images.load(imageMap, function(){
 					g.bot.image = g.images.get("bot_drive");
 					g.state.transition("intro");
@@ -360,7 +354,7 @@ RocketBoots.loadComponents([
 			let r = g.dice.getRandomIntegerBetween(Math.round(PLANET_RADIUS/20), (PLANET_RADIUS - dep.radius));
 			let theta = Math.random() * TWO_PI;
 			dep.pos.setByPolarCoords(r, theta);
-			dep.draw = "circle"; // TODO: make this a custom function
+			dep.draw = drawOre;
 
 			g.world.putIn(dep, ["ore"]);
 
@@ -448,11 +442,35 @@ RocketBoots.loadComponents([
 		$('.build > dl').html(h);
 	}
 
+	function drawOre (ctx, entStageCoords, entStageCoordsOffset, entStageSize, layer, ent) {
+		ent.isHighlighted = (g.bot.targetOreDeposit === ent);
+		ctx.save();
+		ctx.beginPath();
+		if (ent.pos.getDistance(g.bot.pos) <= ORE_SCAN_RANGE) {
+			ctx.fillStyle = ent.color;
+			ctx.strokeStyle = ent.color;
+		} else {
+			ctx.fillStyle = "rgba(50,50,50,0.4)";
+			ctx.strokeStyle = "rgba(255,255,255,0.05)";
+		}
+		if (ent.isHighlighted) {
+			ctx.strokeStyle = "rgba(0,0,0,0.3)";
+			ctx.lineWidth = 4;
+		}
+		ctx.arc(entStageCoords.x, entStageCoords.y, ent.radius, 0, TWO_PI);
+		ctx.closePath();
+		ctx.fill();
+		ctx.stroke();
+		ctx.restore();
+	}
+
 	function drawBot (ctx, entStageCoords, entStageCoordsOffset, entStageSize, layer, ent) {
 
 		if (ent.bodyMode === "drill") {
+			let x = g.dice.getRandomAround(2);
+			let y = g.dice.getRandomAround(2);
 			ctx.drawImage( g.images.get("bot_drill"),
-				entStageCoordsOffset.x, entStageCoordsOffset.y,
+				entStageCoordsOffset.x + x, entStageCoordsOffset.y + y,
 				entStageSize.x, entStageSize.y);
 		} else {
 			ctx.drawImage( ent.image,
@@ -665,7 +683,7 @@ RocketBoots.loadComponents([
 			image: 			g.images.get(buildingKey)
 		});
 		populateInventory(building.inventory);
-		r = PLANET_RADIUS + (BUILDING_HEIGHT/2);
+		r = PLANET_RADIUS + (BUILDING_HEIGHT/2) - BUILDING_R_OFFSET;
 		building.pos.setByPolarCoords(r, bot.pos.theta);
 		fixRotation(building);
 		g.world.putIn(building, ["buildings"], true);

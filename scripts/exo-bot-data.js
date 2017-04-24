@@ -10,17 +10,17 @@ window.data = (function(){
 	const ores = {
 		"iron": {
 			key: "iron",
-			color: "#666",
-			depositMultiplier: 1.5
+			color: "#585856",
+			depositMultiplier: 1.7
 		},
 		"carbon": {
 			key: "carbon",
 			color: "#333",
-			depositMultiplier: 1
+			depositMultiplier: 1.2
 		},
 		"silicon": {
 			key: "silicon",
-			color: "#888",
+			color: "#777a7a",
 			depositMultiplier: 1
 		}, 
 		"gold": {
@@ -89,7 +89,7 @@ window.data = (function(){
 			},
 			uses: {
 				"silicon": 1,
-				"gold": 1,
+				"gold": 2,
 				"energon": 1
 			},
 			produces: {
@@ -101,7 +101,9 @@ window.data = (function(){
 			image: "generic_80",
 			maxHealth: 100,
 			cost: {
-				"metal parts": 100
+				"metal parts": 50,
+				"energon": 50,
+				"electronics": 50
 			},
 			uses: { 
 				"silicon": 2,
@@ -116,9 +118,9 @@ window.data = (function(){
 			image: "solar_array_80",
 			maxHealth: 40,
 			cost: {
-				"metal parts": 200,
+				"metal parts": 50,
 				"solar cells": 100,
-				"electronics": 20
+				"electronics": 50
 			},
 			uses: { 
 				"sunlight": 1 
@@ -133,8 +135,8 @@ window.data = (function(){
 			maxHealth: 60,
 			cost: {
 				"metal parts": 200,
-				"electronics": 10,
-				"energon": 50
+				"electronics": 50,
+				"energon": 100
 			},
 			uses: {
 				"energon": 1,
@@ -152,7 +154,7 @@ window.data = (function(){
 				"metal parts": 100,
 				"electronics": 50,
 				"solar cells": 50,
-				"energon": 50
+				"energon": 100
 			},
 			uses: {
 				"energon": 1
