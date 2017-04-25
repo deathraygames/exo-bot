@@ -108,7 +108,7 @@ window.data = (function(){
 				"energon": 1
 			},
 			produces: { 
-				"solar cell": 1 
+				"solar cells": 1 
 			}			
 		},
 		"solar array": {
