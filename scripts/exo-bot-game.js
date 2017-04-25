@@ -37,8 +37,9 @@ RocketBoots.loadComponents([
 		BASE_DRILL_AMOUNT			= 4,
 		RADIUS_LOSS_PER_DRILL		= 0.1,
 		DRILL_DISTANCE_THRESHOLD 	= PLANET_RADIUS / 10,
-		DRILL_DISTANCE_MAX			= PLANET_RADIUS
-
+		DRILL_DISTANCE_MAX			= PLANET_RADIUS,
+		DIG_RATE 	= 2,
+		UNDIG_RATE	= DIG_RATE
 	;
 
 	//==== GAME
@@ -57,27 +58,28 @@ RocketBoots.loadComponents([
 			{"keyboard": "Keyboard"},
 			{"physics": "Physics"}
 		],
-		version: "v0.1.4"
+		version: "v0.2.0"
 	});
 
 	g.data = window.data; // from exo-bot-data.js
 	g.bot = new RocketBoots.Entity({
 		name: "Exo-bot",
 		size: {x: 32, y: 32},
-		pos: {x: 0, y: (PLANET_RADIUS * 2)},
+		pos: {x: 0, y: (PLANET_RADIUS * 3)},
 		color: "#ccccdd",
 		bodyMode: "drive",
 		targetOreDeposit: null,
 		targetBuilding: null,
 		draw: drawBot,
-		energy: 100
+		energy: 100,
+		deep: 0
 	});
 	g.planet = new RocketBoots.Entity({
 		name: "Small World",
 		radius: PLANET_RADIUS,
 		color: "#553322",
 		isImmovable: true,
-		draw: "circle",
+		draw: drawPlanet,
 		pollution: 0,
 		atmosphere: 0,
 		signal: 0
@@ -126,8 +128,11 @@ RocketBoots.loadComponents([
 				log('Landing...');
 				log('Begin mission: Prepare planet for colonization.');
 				var t = window.setTimeout(function(){
-					g.state.transition("game");
-				}, 100);
+					$('.log').removeClass('closed');
+					var t2 = window.setTimeout(function(){
+						g.state.transition("game");
+					}, 3000);
+				}, 1000);
 			}, end: function(){
 				$('.location, .mask').addClass('closed');
 			}
@@ -163,16 +168,20 @@ RocketBoots.loadComponents([
 							if (hasTargetBuilding()) {
 								unloadFromBuilding(g.bot.targetBuilding);
 							} else {
-								toggleBotBodyMode();
-								//switchBotBodyMode("drill");
+								switchBotBodyMode("drill");
+								dig();
+								//toggleBotBodyMode();
+								//
 							}
 						},
 						"UP": function(){
 							if (hasTargetBuilding()) {
 								loadIntoBuilding(g.bot.targetBuilding);
+							} else if (g.bot.deep > 0) {
+								undig();
 							} else {
-								toggleBotBodyMode();
-								//switchBotBodyMode("drive");
+								switchBotBodyMode("drive");
+								//toggleBotBodyMode();
 							}
 						},
 						"ESC": 	function gotoMenu () {
@@ -261,6 +270,7 @@ RocketBoots.loadComponents([
 		fixRotation(g.bot);
 		g.moon.pos.r = ORBIT_RADIUS;
 		g.stage.draw();
+		drawSpecialEffects();
 		scanNearby();
 
 		// Check for win // TODO: move somewhere else
@@ -454,7 +464,7 @@ RocketBoots.loadComponents([
 			ctx.strokeStyle = "rgba(255,255,255,0.05)";
 		}
 		if (ent.isHighlighted) {
-			ctx.strokeStyle = "rgba(0,0,0,0.3)";
+			ctx.strokeStyle = "rgba(0,0,0,0.4)";
 			ctx.lineWidth = 4;
 		}
 		ctx.arc(entStageCoords.x, entStageCoords.y, ent.radius, 0, TWO_PI);
@@ -465,33 +475,68 @@ RocketBoots.loadComponents([
 	}
 
 	function drawBot (ctx, entStageCoords, entStageCoordsOffset, entStageSize, layer, ent) {
-
 		if (ent.bodyMode === "drill") {
-			let x = g.dice.getRandomAround(2);
-			let y = g.dice.getRandomAround(2);
+			let wobbleX = g.dice.getRandomAround(2);
+			let wobbleY = g.dice.getRandomAround(2);
+
 			ctx.drawImage( g.images.get("bot_drill"),
-				entStageCoordsOffset.x + x, entStageCoordsOffset.y + y,
+				entStageCoordsOffset.x + wobbleX, 
+				entStageCoordsOffset.y + wobbleY + g.bot.deep,
 				entStageSize.x, entStageSize.y);
+
 		} else {
 			ctx.drawImage( ent.image,
 				entStageCoordsOffset.x, entStageCoordsOffset.y,
 				entStageSize.x, entStageSize.y);			
 		}
+	}
 
-		if (ent.targetOreDeposit !== null) {
-			// TODO: Fix
-			/*
-			let target = g.stage.getStageCoords(ent.targetOreDeposit.pos);
-			ctx.save();
-			ctx.strokeStyle = "rgba(100,255,255,0.3)";
-			ctx.moveTo(entStageCoords.x, entStageCoords.y);
+	function drawPlanet (ctx, entStageCoords, entStageCoordsOffset, entStageSize, layer, ent) {
+		ctx.save();
+		ctx.beginPath();
+		ctx.fillStyle = ent.color;
+		ctx.arc(entStageCoords.x, entStageCoords.y, ent.radius, 0, TWO_PI);
+		ctx.closePath();
+		ctx.fill();
+		ctx.stroke();
+
+		if (g.bot.deep > 0) {
+			ctx.beginPath();
+			ctx.fillStyle = "rgba(0,0,0," + (g.bot.deep/PLANET_RADIUS) + ")";
+			ctx.arc(entStageCoords.x, entStageCoords.y, (ent.radius * 0.92), 0, TWO_PI);
+			ctx.closePath();
+			ctx.fill();
+		}
+		ctx.restore();		
+	}
+
+	function drawSpecialEffects () {
+		var ctx = g.stage.layers[0].ctx;
+		var botPos = g.stage.getStageCoords(g.bot.pos);
+		var planetPos = g.stage.getStageCoords(g.planet.pos);
+		ctx.save();
+		/*
+		ctx.stroke();
+		ctx.strokeStyle = "rgba(100,255,255,0.3)";
+		ctx.moveTo(botPos.x, botPos.y);
+		ctx.lineTo(planetPos.x, planetPos.y);
+		ctx.lineWidth = 1;
+		ctx.closePath();
+		ctx.stroke();
+		*/
+
+		if (g.bot.targetOreDeposit !== null) {
+			let drill = g.stage.getStageCoords(getDrillPosition());
+			let target = g.stage.getStageCoords(g.bot.targetOreDeposit.pos);
+			ctx.strokeStyle = "rgba(0,0,0,0.1)";
+			ctx.moveTo(drill.x, drill.y);
 			ctx.lineTo(target.x, target.y);
-			ctx.lineWidth = 1;
+			ctx.lineWidth = 2;
 			ctx.closePath();
 			ctx.stroke();
-			ctx.restore();
-			*/
 		}
+
+		ctx.restore();	
 	}
 
 
@@ -500,6 +545,7 @@ RocketBoots.loadComponents([
 
 	function scanNearby () {
 		var bot = g.bot;
+		var drillPos = getDrillPosition();
 		var minDistance = Infinity;
 		bot.targetBuilding = null;
 		_.each(g.world.entities.buildings, function(building){
@@ -509,6 +555,16 @@ RocketBoots.loadComponents([
 				minDistance = d;
 			}
 		});
+		bot.targetOreDeposit = null;
+		if (bot.bodyMode === "drill") {
+			_.each(g.oreDeposits, function(dep){
+				var d = dep.pos.getDistance(drillPos);
+				if (d < minDistance && dep.radius > 0) {
+					minDistance = d;
+					bot.targetOreDeposit = dep;
+				}
+			});
+		}
 		return minDistance;
 	}
 
@@ -574,8 +630,7 @@ RocketBoots.loadComponents([
 			return false;
 		}
 
-		distance = bot.targetOreDeposit.pos.getDistance(bot.pos);
-		drillAmountMultiplier = getDrillMultiplier(distance);
+		drillAmountMultiplier = getDrillMultiplier();
 		drillAmount *= drillAmountMultiplier;
 
 		freeSpace -= bot.inventory[bot.targetOreDeposit.oreType.key];
@@ -590,13 +645,37 @@ RocketBoots.loadComponents([
 		}
 	}
 
-	function getDrillMultiplier (d) {
+	function dig () {
+		var bot = g.bot;
+		bot.deep += (DIG_RATE * getDrillMultiplier());
+		if (bot.deep > PLANET_RADIUS) {
+			bot.deep = PLANET_RADIUS;
+		}
+	}
+
+	function undig () {
+		var bot = g.bot;
+		bot.deep -= UNDIG_RATE;		
+		if (bot.deep < 0) {
+			bot.deep = 0;
+		}
+	}
+
+	function getDrillPosition () {
+		var bot = g.bot;
+		var drillPos = bot.pos.getUnitVector(g.planet.pos).multiply(bot.deep);
+		drillPos.add(bot.pos);
+		return drillPos;
+	}
+
+	function getDrillMultiplier () {
+		var d = g.bot.targetOreDeposit.pos.getDistance(getDrillPosition());
 		if (d < DRILL_DISTANCE_THRESHOLD) {
 			return 1;
 		} else if (d > DRILL_DISTANCE_MAX) {
 			return 0;
 		}
-		return Math.round( ((DRILL_DISTANCE_MAX - d) / DRILL_DISTANCE_MAX) * 100 )/100;
+		return Math.round( ((DRILL_DISTANCE_MAX - d) / DRILL_DISTANCE_MAX) * 10 )/10;
 	}
 
 	function toggleBotBodyMode () {
@@ -611,19 +690,13 @@ RocketBoots.loadComponents([
 	function switchBotBodyMode (m) {
 		var bot = g.bot;
 		var minDistance = Infinity;
+		var actualSwitch = (bot.bodyMode !== m);
 		bot.bodyMode = m;
 		// Now do stuff
-		log("Mode: " + bot.bodyMode);
-		bot.targetOreDeposit = null;
-		if (bot.bodyMode === "drill") {
-			_.each(g.oreDeposits, function(dep){
-				var d = dep.pos.getDistance(bot.pos);
-				if (d < minDistance && dep.radius > 0) {
-					minDistance = d;
-					bot.targetOreDeposit = dep;
-				}
-			});
+		if (actualSwitch) {
+			log("Mode: " + bot.bodyMode, true);
 		}
+		scanNearby();
 	}
 
 	function removeFromInventory (costs) {
@@ -663,6 +736,10 @@ RocketBoots.loadComponents([
 		var r;
 		if (!canAffordBuilding(buildingKey)) {
 			log("Insufficient resources to build " + buildingKey);
+			return false;
+		}
+		if (g.bot.targetBuilding !== null) {
+			log("Cannot build so close to another building.");
 			return false;
 		}
 		removeFromInventory(buildingType.cost);
