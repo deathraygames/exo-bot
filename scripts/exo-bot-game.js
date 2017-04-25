@@ -15,17 +15,19 @@ RocketBoots.loadComponents([
 ]).ready(function(){
 
 	const 
-		ORE_DEPOSITS	= 50,
-		PLANET_RADIUS 	= 400,
-		MOON_RADIUS		= (PLANET_RADIUS/10),
-		ORBIT_RADIUS	= (PLANET_RADIUS * 1.75),
-		LOOP_DELAY 		= 100,   	// 10 = 1/100th of a second (better than 60 fps)
-		RENDER_DELAY 	= 500, 		// ms
-		ACTION_DELAY	= 400, 		// ms
+		DEBUG 				= false,
+		ORE_DEPOSITS		= 50,
+		PLANET_RADIUS 		= 400,
+		MOON_RADIUS			= (PLANET_RADIUS/10),
+		ORBIT_RADIUS		= (PLANET_RADIUS * 1.75),
+		LOOP_DELAY 			= 100,   	// 10 = 1/100th of a second (better than 60 fps)
+		RENDER_DELAY 		= 500, 		// ms
+		ACTION_DELAY		= 400, 		// ms
 		BUILDING_PROCESS_DELAY 	= 1000, //ms
-		TWO_PI			= Math.PI * 2,
-		BOT_BODY_MODES  = ["drive", "drill"],
-		STARTING_PARTS	= 50,
+		TWO_PI				= Math.PI * 2,
+		BOT_BODY_MODES  	= ["drive", "drill"],
+		STARTING_PARTS		= 50,
+		STARTING_Y			= (DEBUG ? PLANET_RADIUS : PLANET_RADIUS * 3),
 		BUILDING_HEIGHT 	= 80, // 40
 		BUILDING_WIDTH 		= 80, // 40
 		BUILDING_R_OFFSET	= 0,
@@ -39,7 +41,9 @@ RocketBoots.loadComponents([
 		DRILL_DISTANCE_THRESHOLD 	= PLANET_RADIUS / 10,
 		DRILL_DISTANCE_MAX			= PLANET_RADIUS,
 		DIG_RATE 	= 2,
-		UNDIG_RATE	= DIG_RATE
+		UNDIG_RATE	= DIG_RATE,
+		WAIT_1		= (DEBUG ? 0 : 1000),
+		WAIT_2		= (DEBUG ? 0 : 3000)
 	;
 
 	//==== GAME
@@ -58,7 +62,7 @@ RocketBoots.loadComponents([
 			{"keyboard": "Keyboard"},
 			{"physics": "Physics"}
 		],
-		version: "v0.2.0"
+		version: "v0.2.1"
 	});
 
 	g.data = window.data; // from exo-bot-data.js
@@ -131,8 +135,8 @@ RocketBoots.loadComponents([
 					$('.log').removeClass('closed');
 					var t2 = window.setTimeout(function(){
 						g.state.transition("game");
-					}, 3000);
-				}, 1000);
+					}, WAIT_2);
+				}, WAIT_1);
 			}, end: function(){
 				$('.location, .mask').addClass('closed');
 			}
