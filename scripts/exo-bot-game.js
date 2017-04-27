@@ -38,14 +38,17 @@ RocketBoots.loadComponents([
 		LOAD_AMOUNT					= 10,
 		BOT_MAX_RESOURCE			= 500,
 		BUILDING_MAX_RESOURCE 		= 1000,
-		BASE_DRILL_AMOUNT			= 40, //4,
+		BASE_DRILL_AMOUNT			= 4, 
 		RADIUS_LOSS_PER_DRILL		= 0.1,
 		DRILL_DISTANCE_THRESHOLD 	= PLANET_RADIUS / 10,
 		DRILL_DISTANCE_MAX			= PLANET_RADIUS,
 		DIG_RATE 					= 2,
 		UNDIG_RATE					= DIG_RATE,
 		WAIT_1						= (DEBUG ? 0 : 1000),
-		WAIT_2						= (DEBUG ? 0 : 3000)
+		WAIT_2						= (DEBUG ? 0 : 3000),
+		GOAL_SIGNAL					= 100,
+		GOAL_ATMOSPHERE				= 100,
+		HIGH_POLLUTION				= 300
 	;
 
 	//==== GAME
@@ -64,7 +67,7 @@ RocketBoots.loadComponents([
 			{"keyboard": "Keyboard"},
 			{"physics": "Physics"}
 		],
-		version: "v0.2.2"
+		version: "v0.3.0"
 	});
 
 	g.data = window.data; // from exo-bot-data.js
@@ -73,6 +76,7 @@ RocketBoots.loadComponents([
 		size: {x: BOT_WIDTH, y: BOT_HEIGHT},
 		pos: {x: 0, y: STARTING_Y},
 		color: "#ccccdd",
+		//layerZIndex: 1,
 		bodyMode: "drive",
 		targetOreDeposit: null,
 		targetBuilding: null,
@@ -84,12 +88,15 @@ RocketBoots.loadComponents([
 	g.planet = new RocketBoots.Entity({
 		name: "Small World",
 		radius: PLANET_RADIUS,
+		illuminatedColor: "#664433",
 		color: "#553322",
 		isImmovable: true,
 		draw: drawPlanet,
+		drawOffstage: true,
 		pollution: 0,
 		atmosphere: 0,
-		signal: 0
+		signal: 0,
+		atmosphereRadius: (PLANET_RADIUS * 2.5)
 	});
 	g.moon = new RocketBoots.Entity({
 		name: "Mun",
@@ -111,7 +118,8 @@ RocketBoots.loadComponents([
 			start: function(){
 				var imageMap = {
 					"bot_drive": "bot/bot_32.png",
-					"bot_drill": "bot/bot_drill_32.png"
+					"bot_drill": "bot/bot_drill_32.png",
+					"bot_fly": "bot/bot_flyer_32.png"
 				};
 				_.forEach(g.data.buildings, function(building, buildingKey){
 					imageMap[buildingKey] = "buildings/" + building.image + ".png";
@@ -181,7 +189,8 @@ RocketBoots.loadComponents([
 						},
 						"x": function(){
 							$('.help').toggleClass('closed');
-						}
+						},
+						"z": freezeVelocity
 					}
 				});
 
@@ -259,16 +268,18 @@ RocketBoots.loadComponents([
 		//g.stage.camera.rotation += onePlotAngle/100;
 		g.moon.vel.theta = g.moon.pos.theta ;
 		g.physics.apply(g.world);
+		planetPhysics();
 		g.bot.drillPos = getDrillPosition();
 
 		fixRotation(g.bot);
 		g.moon.pos.r = ORBIT_RADIUS;
 		g.stage.draw();
 		drawSpecialEffects();
+		drawPollution();
 		scanNearby();
 
 		// Check for win // TODO: move somewhere else
-		if (g.planet.signal > 100 && g.planet.atmosphere > 100 && g.planet.atmosphere > g.planet.pollution) {
+		if (g.planet.signal > GOAL_SIGNAL && g.planet.atmosphere > GOAL_ATMOSPHERE && g.planet.atmosphere > g.planet.pollution) {
 			g.state.transition("win");
 		}
 	}
@@ -280,8 +291,8 @@ RocketBoots.loadComponents([
 		g.world.name = "Exo-bot Known Galaxy";
 		g.world.isBounded = true;
 		g.world.setSizeRange(
-			{x: (-2 * PLANET_RADIUS), y: (-2 * PLANET_RADIUS)}, 
-			{x: (2 * PLANET_RADIUS), y: (2 * PLANET_RADIUS)}
+			{x: (-5 * PLANET_RADIUS), y: (-5 * PLANET_RADIUS)}, 
+			{x: (5 * PLANET_RADIUS), y: (5 * PLANET_RADIUS)}
 		);
 		g.world.addEntityGroups(["planets", "buildings", "enemies", "bot", "ore"]);
 
@@ -306,7 +317,8 @@ RocketBoots.loadComponents([
 
 		// Setup Physics
 		g.physics.isObjectGravityOn = true;
-		g.gravitationalConstant = 0.01;
+		g.physics.elasticity = 0.1;
+		g.physics.gravitationalConstant = 0.7;
 
 		// Setup bot's inventory
 		g.bot.inventory = {};
@@ -478,6 +490,11 @@ RocketBoots.loadComponents([
 				entStageCoordsOffset.y + wobbleY + g.bot.deep,
 				entStageSize.x, entStageSize.y);
 
+		} else if (ent.bodyMode === "fly") {
+			ctx.drawImage( g.images.get("bot_fly"),
+				entStageCoordsOffset.x, 
+				entStageCoordsOffset.y,
+				entStageSize.x, entStageSize.y);
 		} else {
 			ctx.drawImage( ent.image,
 				entStageCoordsOffset.x, entStageCoordsOffset.y,
@@ -487,12 +504,41 @@ RocketBoots.loadComponents([
 
 	function drawPlanet (ctx, entStageCoords, entStageCoordsOffset, entStageSize, layer, ent) {
 		ctx.save();
-		ctx.beginPath();
-		ctx.fillStyle = ent.color;
-		ctx.arc(entStageCoords.x, entStageCoords.y, ent.radius, 0, TWO_PI);
-		ctx.closePath();
-		ctx.fill();
-		ctx.stroke();
+		{
+			let r1 = ent.radius * 1.4;
+			let r2 = ent.radius * 2.5;
+			let r3 = ent.radius * 3;
+			let gradient = ctx.createRadialGradient(
+				entStageCoords.x, entStageCoords.y ,r1,
+				entStageCoords.x, entStageCoords.y, r2
+			);
+			let effectiveAtmosphere = g.planet.atmosphere - (g.planet.pollution/3);
+			let amtosphereMultiplier = Math.min((effectiveAtmosphere / GOAL_ATMOSPHERE), 1);
+			let opacity1 = 0.9 * amtosphereMultiplier;
+			let opacity2 = Math.max(0.1 * amtosphereMultiplier, 0.03);
+			gradient.addColorStop(0, "rgba(100,150,255," + opacity1 + ")");
+			gradient.addColorStop(1, "rgba(255,200,255," + opacity2 + ")");
+			ctx.beginPath();
+			ctx.fillStyle = gradient;
+			ctx.arc(entStageCoords.x, entStageCoords.y, r3, 0, TWO_PI);
+			ctx.closePath();
+			ctx.fill();
+		}
+		//ctx.stroke();
+		{
+			let x = (entStageSize.x/2) - (entStageCoords.x/10) ;
+			let y = (entStageSize.y/2) + (entStageCoords.y/10) ;
+			let r = ent.radius * 0.8;
+			let gradient = ctx.createRadialGradient(x, y, 0, x, y, r);
+			gradient.addColorStop(0, ent.illuminatedColor);
+			gradient.addColorStop(1, ent.color);
+			ctx.beginPath();
+			ctx.fillStyle = gradient;
+			ctx.arc(entStageCoords.x, entStageCoords.y, ent.radius, 0, TWO_PI);
+			ctx.closePath();
+			ctx.fill();
+		}
+		//ctx.stroke();
 
 		if (g.bot.deep > 0) {
 			ctx.beginPath();
@@ -531,6 +577,46 @@ RocketBoots.loadComponents([
 		}
 
 		ctx.restore();	
+	}
+
+	function drawPollution () {
+		var ctx = g.stage.layers[0].ctx;
+		var planetPos = g.stage.getStageCoords(g.planet.pos);
+		ctx.save();
+		{
+			let r1 = g.planet.radius * 2;
+			let r2 = g.planet.radius * 2.5;
+			let r3 = g.planet.radius * 4;
+			let gradient = ctx.createRadialGradient(
+				planetPos.x, planetPos.y ,r1,
+				planetPos.x, planetPos.y, r2
+			);
+			let amtosphereMultiplier = Math.min((g.planet.pollution / HIGH_POLLUTION), 1);
+			let opacity1 = 0.8 * amtosphereMultiplier;
+			//let opacity2 = 0.5 * amtosphereMultiplier;
+			gradient.addColorStop(0, "rgba(50,50,50," + opacity1 + ")");
+			gradient.addColorStop(1, "rgba(50,50,50,0)");
+			ctx.beginPath();
+			ctx.fillStyle = gradient;
+			ctx.arc(planetPos.x, planetPos.y, r3, 0, TWO_PI);
+			ctx.closePath();
+			ctx.fill();
+		}		
+		ctx.restore();
+	}
+
+	//===== PHYSICS
+
+	function planetPhysics () {
+		if (g.bot.pos.getDistance(g.planet.pos) < g.planet.atmosphereRadius) {
+			// multiplier of x0-2
+			let airMultiplier = Math.min((g.planet.atmosphere + g.planet.pollution) / GOAL_ATMOSPHERE, 2);
+			let dragMultiplier = airMultiplier * 50;
+			let dragForce = g.bot.vel.clone().multiply(-1 * dragMultiplier);
+			window.airMultiplier = airMultiplier;
+			window.dragForce = dragForce;
+			g.bot.force.add(dragForce);
+		}
 	}
 
 
@@ -608,12 +694,13 @@ RocketBoots.loadComponents([
 	function moveLeft () {		move(1);	}
 	function moveRight () {		move(-1);	}
 	function move (n) {
-		var forceAmount = 4000 * n;
+		var DRIVE_HEIGHT_TOLERANCE = 2;
+		var forceAmount = 3000 * n;
 		var boost;
 		if (g.bot.bodyMode !== "drive") {
 			return false;
 		}
-		if (Math.abs(g.bot.pos.r - PLANET_RADIUS - (BOT_HEIGHT/2)) > 6) {
+		if (Math.abs(g.bot.pos.r - PLANET_RADIUS - (BOT_HEIGHT/2)) > DRIVE_HEIGHT_TOLERANCE) {
 			return false;
 		}
 		boost = g.bot.pos.getUnitVectorTangent(g.planet.pos);
@@ -626,14 +713,17 @@ RocketBoots.loadComponents([
 			return false;
 		}
 		log("Jump!");
-		g.bot.force.r += 30000;
+		g.bot.force.r += 20000;
 	}
 
 	function jet (dir) {
 		var forceAmount = 10000;
 		var boost = (new RocketBoots.Coords(dir)).multiply(forceAmount);
 		g.bot.force.add(boost);
+	}
 
+	function freezeVelocity () {
+		g.bot.vel.clear();
 	}
 
 
@@ -670,7 +760,13 @@ RocketBoots.loadComponents([
 	}
 
 	function fixRotation (ent) {
-		ent.rotation = (ent.pos.theta - (Math.PI/2)) * -1;
+		if (ent.bodyMode === "fly") {
+			//let angle = (ent.vel.x == 0) ? 0 : Math.atan(ent.vel.y / ent.vel.x);
+			//ent.rotation = angle + (Math.PI * (3/2));
+			ent.rotation = (ent.pos.theta - (Math.PI/2)) * -1;
+		} else {
+			ent.rotation = (ent.pos.theta - (Math.PI/2)) * -1;
+		}
 	}
 
 	function botAction () {
@@ -811,7 +907,7 @@ RocketBoots.loadComponents([
 		r = PLANET_RADIUS + (BUILDING_HEIGHT/2) - BUILDING_R_OFFSET;
 		building.pos.setByPolarCoords(r, bot.pos.theta);
 		fixRotation(building);
-		g.world.putIn(building, ["buildings"], true);
+		g.world.putIn(building, ["buildings"]);
 		log("Built " + buildingKey + ".");
 	}
 
