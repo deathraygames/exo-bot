@@ -15,9 +15,11 @@ RocketBoots.loadComponents([
 ]).ready(function(){
 
 	const 
-		DEBUG 				= false,
+		DEBUG 				= true, //false,
 		ORE_DEPOSITS		= 50,
 		PLANET_RADIUS 		= 400,
+		BOT_HEIGHT			= 32,
+		BOT_WIDTH			= 32,
 		MOON_RADIUS			= (PLANET_RADIUS/10),
 		ORBIT_RADIUS		= (PLANET_RADIUS * 1.75),
 		LOOP_DELAY 			= 100,   	// 10 = 1/100th of a second (better than 60 fps)
@@ -25,25 +27,25 @@ RocketBoots.loadComponents([
 		ACTION_DELAY		= 400, 		// ms
 		BUILDING_PROCESS_DELAY 	= 1000, //ms
 		TWO_PI				= Math.PI * 2,
-		BOT_BODY_MODES  	= ["drive", "drill"],
+		BOT_BODY_MODES  	= ["drive", "drill", "fly"],
 		STARTING_PARTS		= 50,
 		STARTING_Y			= (DEBUG ? PLANET_RADIUS : PLANET_RADIUS * 3),
 		BUILDING_HEIGHT 	= 80, // 40
 		BUILDING_WIDTH 		= 80, // 40
 		BUILDING_R_OFFSET	= 0,
 		BUILDING_SCAN 		= BUILDING_WIDTH,
-		ORE_SCAN_RANGE		= PLANET_RADIUS,
+		ORE_SCAN_RANGE		= PLANET_RADIUS/2,
 		LOAD_AMOUNT					= 10,
 		BOT_MAX_RESOURCE			= 500,
 		BUILDING_MAX_RESOURCE 		= 1000,
-		BASE_DRILL_AMOUNT			= 4,
+		BASE_DRILL_AMOUNT			= 40, //4,
 		RADIUS_LOSS_PER_DRILL		= 0.1,
 		DRILL_DISTANCE_THRESHOLD 	= PLANET_RADIUS / 10,
 		DRILL_DISTANCE_MAX			= PLANET_RADIUS,
-		DIG_RATE 	= 2,
-		UNDIG_RATE	= DIG_RATE,
-		WAIT_1		= (DEBUG ? 0 : 1000),
-		WAIT_2		= (DEBUG ? 0 : 3000)
+		DIG_RATE 					= 2,
+		UNDIG_RATE					= DIG_RATE,
+		WAIT_1						= (DEBUG ? 0 : 1000),
+		WAIT_2						= (DEBUG ? 0 : 3000)
 	;
 
 	//==== GAME
@@ -62,19 +64,20 @@ RocketBoots.loadComponents([
 			{"keyboard": "Keyboard"},
 			{"physics": "Physics"}
 		],
-		version: "v0.2.1"
+		version: "v0.2.2"
 	});
 
 	g.data = window.data; // from exo-bot-data.js
 	g.bot = new RocketBoots.Entity({
 		name: "Exo-bot",
-		size: {x: 32, y: 32},
-		pos: {x: 0, y: (PLANET_RADIUS * 3)},
+		size: {x: BOT_WIDTH, y: BOT_HEIGHT},
+		pos: {x: 0, y: STARTING_Y},
 		color: "#ccccdd",
 		bodyMode: "drive",
 		targetOreDeposit: null,
 		targetBuilding: null,
 		draw: drawBot,
+		drillPos: {x: 0, y: STARTING_Y},
 		energy: 100,
 		deep: 0
 	});
@@ -165,29 +168,14 @@ RocketBoots.loadComponents([
 						"TAB": function(){
 							g.state.transition("build");
 						},
-						"SPACE": jump,
-						"LEFT": moveLeft,
-						"RIGHT": moveRight,
-						"DOWN": function(){
-							if (hasTargetBuilding()) {
-								unloadFromBuilding(g.bot.targetBuilding);
-							} else {
-								switchBotBodyMode("drill");
-								dig();
-								//toggleBotBodyMode();
-								//
-							}
+						"SPACE": function(){
+							toggleBotBodyMode();
 						},
-						"UP": function(){
-							if (hasTargetBuilding()) {
-								loadIntoBuilding(g.bot.targetBuilding);
-							} else if (g.bot.deep > 0) {
-								undig();
-							} else {
-								switchBotBodyMode("drive");
-								//toggleBotBodyMode();
-							}
-						},
+						"j": 		jump,
+						"LEFT": 	botLeft,
+						"RIGHT": 	botRight,
+						"DOWN": 	botDown,
+						"UP": 		botUp,
 						"ESC": 	function gotoMenu () {
 							g.state.transition("menu");
 						},
@@ -271,6 +259,8 @@ RocketBoots.loadComponents([
 		//g.stage.camera.rotation += onePlotAngle/100;
 		g.moon.vel.theta = g.moon.pos.theta ;
 		g.physics.apply(g.world);
+		g.bot.drillPos = getDrillPosition();
+
 		fixRotation(g.bot);
 		g.moon.pos.r = ORBIT_RADIUS;
 		g.stage.draw();
@@ -460,7 +450,7 @@ RocketBoots.loadComponents([
 		ent.isHighlighted = (g.bot.targetOreDeposit === ent);
 		ctx.save();
 		ctx.beginPath();
-		if (ent.pos.getDistance(g.bot.pos) <= ORE_SCAN_RANGE) {
+		if (ent.pos.getDistance(g.bot.drillPos) <= ORE_SCAN_RANGE) {
 			ctx.fillStyle = ent.color;
 			ctx.strokeStyle = ent.color;
 		} else {
@@ -530,7 +520,7 @@ RocketBoots.loadComponents([
 		*/
 
 		if (g.bot.targetOreDeposit !== null) {
-			let drill = g.stage.getStageCoords(getDrillPosition());
+			let drill = g.stage.getStageCoords(g.bot.drillPos);
 			let target = g.stage.getStageCoords(g.bot.targetOreDeposit.pos);
 			ctx.strokeStyle = "rgba(0,0,0,0.1)";
 			ctx.moveTo(drill.x, drill.y);
@@ -545,24 +535,127 @@ RocketBoots.loadComponents([
 
 
 
-	//===== BOT ACTIONS
+	//===== BOT ACTIONS ====== MOVEMENT
+
+	function botDown () {
+		if (g.bot.bodyMode === "fly") {
+			jet({x: 0, y: -1});
+		} else if (g.bot.bodyMode === "drive") {
+			if (hasTargetBuilding()) {
+				unloadFromBuilding(g.bot.targetBuilding);
+			} else {
+				switchBotBodyMode("drill");
+			}
+		} else if (g.bot.bodyMode === "drill") {
+			dig();
+		}
+	}
+
+	function botUp () {
+		if (g.bot.bodyMode === "fly") {
+			jet({x: 0, y: 1});
+		} else if (g.bot.bodyMode === "drive") {		
+			if (hasTargetBuilding()) {
+				loadIntoBuilding(g.bot.targetBuilding);
+			} else {
+				//jump();
+			}
+		} else if (g.bot.bodyMode === "drill") {
+			if (g.bot.deep > 0) {
+				undig();
+			} else {
+				switchBotBodyMode("drive");
+			}
+		}
+	}
+
+	function botLeft () {
+		if (g.bot.bodyMode === "fly") {
+			jet({x: -1, y: 0});
+		} else if (g.bot.bodyMode === "drive") {
+			moveLeft();
+		} else if (g.bot.bodyMode === "drill") {
+			
+		}
+	}
+
+	function botRight () {
+		if (g.bot.bodyMode === "fly") {
+			jet({x: 1, y: 0});
+		} else if (g.bot.bodyMode === "drive") {
+			moveRight();
+		} else if (g.bot.bodyMode === "drill") {
+			
+		}
+	}
+
+	function dig () {
+		var bot = g.bot;
+		bot.deep += (DIG_RATE * ((PLANET_RADIUS - bot.deep)/PLANET_RADIUS));
+		if (bot.deep > PLANET_RADIUS) {
+			bot.deep = PLANET_RADIUS;
+		}
+	}
+
+	function undig () {
+		var bot = g.bot;
+		bot.deep -= UNDIG_RATE;		
+		if (bot.deep < 0) {
+			bot.deep = 0;
+		}
+	}
+
+	function moveLeft () {		move(1);	}
+	function moveRight () {		move(-1);	}
+	function move (n) {
+		var forceAmount = 4000 * n;
+		var boost;
+		if (g.bot.bodyMode !== "drive") {
+			return false;
+		}
+		if (Math.abs(g.bot.pos.r - PLANET_RADIUS - (BOT_HEIGHT/2)) > 6) {
+			return false;
+		}
+		boost = g.bot.pos.getUnitVectorTangent(g.planet.pos);
+		boost.multiply(forceAmount);
+		g.bot.force.add(boost);
+	}
+
+	function jump () {
+		if (g.bot.bodyMode !== "drive") {
+			return false;
+		}
+		log("Jump!");
+		g.bot.force.r += 30000;
+	}
+
+	function jet (dir) {
+		var forceAmount = 10000;
+		var boost = (new RocketBoots.Coords(dir)).multiply(forceAmount);
+		g.bot.force.add(boost);
+
+	}
+
+
+
+	//===== BOT ACTIONS ====== 
 
 	function scanNearby () {
 		var bot = g.bot;
-		var drillPos = getDrillPosition();
-		var minDistance = Infinity;
+		var minDistance = BUILDING_SCAN;
 		bot.targetBuilding = null;
 		_.each(g.world.entities.buildings, function(building){
 			let d = building.pos.getDistance(bot.pos);
-			if (d < BUILDING_SCAN && d < minDistance) {
+			if (d < minDistance) {
 				bot.targetBuilding = building;
 				minDistance = d;
 			}
 		});
+		minDistance = ORE_SCAN_RANGE;
 		bot.targetOreDeposit = null;
 		if (bot.bodyMode === "drill") {
 			_.each(g.oreDeposits, function(dep){
-				var d = dep.pos.getDistance(drillPos);
+				var d = dep.pos.getDistance(bot.drillPos);
 				if (d < minDistance && dep.radius > 0) {
 					minDistance = d;
 					bot.targetOreDeposit = dep;
@@ -582,39 +675,6 @@ RocketBoots.loadComponents([
 
 	function botAction () {
 		drill();
-	}
-
-	function moveLeft () {
-		move(1);
-	}
-
-	function moveRight () {
-		move(-1);
-	}
-
-	function move (n) {
-		if (g.bot.bodyMode !== "drive") {
-			return false;
-		}
-		if (Math.abs(g.bot.pos.r - PLANET_RADIUS) < 420) {
-			// TODO: fix this
-			//g.bot.acc.r = g.bot.acc.r + 2;
-			//console.log(g.bot.vel, g.bot.vel.theta, "new theta = ", g.bot.vel.theta + (0.01 * n));
-			//g.bot.acc.theta = g.bot.acc.theta + (100 * n);
-			//console.log(g.bot.vel);
-			g.bot.pos.theta = g.bot.pos.theta + (0.015 * n);
-			//console.log("Move", n);
-		} else {
-			//console.warn("Too far to drive");
-		}
-	}
-
-	function jump () {
-		if (g.bot.bodyMode !== "drive") {
-			return false;
-		}
-		console.log("Jump");
-		g.bot.force.r = 40000;
 	}
 
 	function drill () {
@@ -649,22 +709,6 @@ RocketBoots.loadComponents([
 		}
 	}
 
-	function dig () {
-		var bot = g.bot;
-		bot.deep += (DIG_RATE * getDrillMultiplier());
-		if (bot.deep > PLANET_RADIUS) {
-			bot.deep = PLANET_RADIUS;
-		}
-	}
-
-	function undig () {
-		var bot = g.bot;
-		bot.deep -= UNDIG_RATE;		
-		if (bot.deep < 0) {
-			bot.deep = 0;
-		}
-	}
-
 	function getDrillPosition () {
 		var bot = g.bot;
 		var drillPos = bot.pos.getUnitVector(g.planet.pos).multiply(bot.deep);
@@ -673,7 +717,7 @@ RocketBoots.loadComponents([
 	}
 
 	function getDrillMultiplier () {
-		var d = g.bot.targetOreDeposit.pos.getDistance(getDrillPosition());
+		var d = g.bot.targetOreDeposit.pos.getDistance(g.bot.drillPos);
 		if (d < DRILL_DISTANCE_THRESHOLD) {
 			return 1;
 		} else if (d > DRILL_DISTANCE_MAX) {
