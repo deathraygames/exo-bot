@@ -56,7 +56,7 @@ RocketBoots.loadComponents([
 			{"keyboard": "Keyboard"},
 			{"physics": "Physics"}
 		],
-		version: "v0.1.3-ld38"
+		version: "v0.1.4-ld38"
 	});
 
 	g.data = window.data; // from exo-bot-data.js
