@@ -48,8 +48,8 @@ window.data = (function(){
 		}
 	};
 	const buildings = {
-		"combustion factory": {
-			key: "combustion factory",
+		"combustion metal factory": {
+			key: "combustion metal factory",
 			image: "combustion_factory_80",
 			maxHealth: 500,
 			cost: {
@@ -129,6 +129,21 @@ window.data = (function(){
 				"energon": 1
 			}
 		},
+		"clean metal factory": {
+			key: "clean metal factory",
+			image: "generic_80",
+			maxHealth: 500,
+			cost: {
+				"metal parts": 100
+			},
+			uses: {
+				"energon": 1,
+				"iron": 1
+			},
+			produces: {
+				"metal parts": 1
+			}
+		},
 		"terraformer": {
 			key: "terraformer",
 			image: "generic_80",
@@ -165,11 +180,12 @@ window.data = (function(){
 		}
 	};
 	const buildingsOrder = [
-		"combustion factory", 
+		"combustion metal factory", 
 		"combustion power plant", 
 		"electronics factory",
 		"solar cell factory",
 		"solar array",
+		"clean metal factory",
 		"terraformer",
 		"colonization beacon"
 	];
