@@ -71,6 +71,7 @@ RocketBoots.loadComponents([
 		version: "v0.3.5"
 	});
 
+	g.layer = null; // Only going to use one layer; set in setup
 	g.data = window.data; // from exo-bot-data.js
 	g.bot = new RocketBoots.Entity({
 		name: "Exo-bot",
@@ -107,6 +108,7 @@ RocketBoots.loadComponents([
 		draw: "circle"
 	});
 
+	g.stars = [];
 	g.oreDeposits = [];
 	g.logs = ["...", "...", "...", "...", "..."];
 
@@ -282,6 +284,10 @@ RocketBoots.loadComponents([
 
 		fixRotation(g.bot);
 		g.moon.pos.r = ORBIT_RADIUS;
+		// Drawing
+			//g.layer.clear();
+			//drawStars();
+			//g.layer.draw(true); // slightly faster than g.stage.draw() and has ability to not clear
 		g.stage.draw();
 		drawSpecialEffects();
 		drawPollution();
@@ -294,14 +300,16 @@ RocketBoots.loadComponents([
 	}
 
 	function setup () {
+		const WORLD_MIN_COORD = -5 * PLANET_RADIUS;
+		const WORLD_MAX_COORD = 5 * PLANET_RADIUS;
 		var layer;
 		// The "world" acts as the grid for all the entities; can think of it as
 		// the physical universe; centered (0,0) on the planet
 		g.world.name = "Exo-bot Known Galaxy";
 		g.world.isBounded = true;
 		g.world.setSizeRange(
-			{x: (-5 * PLANET_RADIUS), y: (-5 * PLANET_RADIUS)}, 
-			{x: (5 * PLANET_RADIUS), y: (5 * PLANET_RADIUS)}
+			{x: WORLD_MIN_COORD, y: WORLD_MIN_COORD}, 
+			{x: WORLD_MAX_COORD, y: WORLD_MAX_COORD}
 		);
 		g.world.addEntityGroups(["planets", "buildings", "enemies", "bot", "ore"]);
 
@@ -314,6 +322,7 @@ RocketBoots.loadComponents([
 		//g.stage.camera.set({x: 0, y: PLANET_RADIUS/2}).focus();
 		g.stage.camera.follow(g.bot);
 		g.stage.resize();
+		g.layer = g.stage.layers[0]; // Only going to use one layer
 
 		// Connect all world entities to the layer
 		layer.connectEntities(g.world.entities.all);
@@ -336,6 +345,23 @@ RocketBoots.loadComponents([
 
 		// Setup planet's ore deposits
 		setupOreDeposits();
+		// Setup stars
+		setupStars(WORLD_MIN_COORD, WORLD_MAX_COORD);
+	}
+
+	function setupStars (min, max) {
+		var i = 100;
+		var starField;
+		g.stars = [];
+		g.stars.push([]);
+		starField = g.stars[0];
+		while (i--) {
+			starField.push({
+				x: g.dice.getRandomIntegerBetween(min, max), 
+				y: g.dice.getRandomIntegerBetween(min, max),
+				size: g.dice.getRandomIntegerBetween(1, 2),
+			});
+		}
 	}
 
 	function populateInventory (invObj) {
@@ -565,8 +591,34 @@ RocketBoots.loadComponents([
 		ctx.restore();		
 	}
 
+	function drawStars () {
+		var ctx = g.layer.ctx;
+
+		ctx.save();
+        
+        
+        
+        
+
+		_.each(g.stars, function(starField){
+			let i = starField.length;
+			while (i--) {
+				let star = starField[i];
+				ctx.beginPath();
+				ctx.fillStyle = "#aa8";
+				ctx.moveTo(star.x, star.y);
+				ctx.arc(star.x, star.y, 2, 0, TWO_PI, true);
+				ctx.fill();
+        		ctx.closePath();
+			}
+		});
+		
+        ctx.restore();
+
+	}
+
 	function drawSpecialEffects () {
-		var ctx = g.stage.layers[0].ctx;
+		var ctx = g.layer.ctx;
 		var botPos = g.stage.getStageCoords(g.bot.pos);
 		var planetPos = g.stage.getStageCoords(g.planet.pos);
 		ctx.save();
@@ -595,7 +647,7 @@ RocketBoots.loadComponents([
 	}
 
 	function drawPollution () {
-		var ctx = g.stage.layers[0].ctx;
+		var ctx = g.layer.ctx;
 		var planetPos = g.stage.getStageCoords(g.planet.pos);
 		ctx.save();
 		{
