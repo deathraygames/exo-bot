@@ -45,7 +45,9 @@ a {
 	a:hover {
 		text-decoration: underline;
 	}
-
+.full {
+	color: #ffaa99;
+}
 
 
 .body {
@@ -154,13 +156,33 @@ a {
 	width: 30em;
 	margin-left: -15em;
 }
+	.build > dl > div {
+		border-bottom: solid 1px rgba(255,255,255,0.1);
+		margin-bottom: 0.5em;
+	}
+	.build > dl > div::after { content: ""; display: table; clear: both; }
+	.build .image {
+		margin: 0 0 0 1em;
+		float: right;
+	}
+	.build .image img {
+		
+		width: 2em;
+	}
+	.build .name {
+		min-width: 9em;
+	}
 
 
 .cannotAfford {
-	opacity: 0.75;
+	
 }
-	.cannotAfford .name {
+	.cannotAfford .name,
+	.cannotAfford .cost {
 		color: #cc6666;
+	}
+	.cannotAfford .image {
+		opacity: 0.2;
 	}
 
 .closed,

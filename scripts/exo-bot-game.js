@@ -15,7 +15,7 @@ RocketBoots.loadComponents([
 ]).ready(function(){
 
 	const 
-		DEBUG 				= true, //false,
+		DEBUG 				= false,
 		ORE_DEPOSITS		= 50,
 		PLANET_RADIUS 		= 400,
 		BOT_HEIGHT			= 32,
@@ -44,11 +44,12 @@ RocketBoots.loadComponents([
 		DRILL_DISTANCE_MAX			= PLANET_RADIUS,
 		DIG_RATE 					= 2,
 		UNDIG_RATE					= DIG_RATE,
-		WAIT_1						= (DEBUG ? 0 : 1000),
-		WAIT_2						= (DEBUG ? 0 : 3000),
+		WAIT_INTRO					= (DEBUG ? 0 : 1500),
 		GOAL_SIGNAL					= 100,
 		GOAL_ATMOSPHERE				= 100,
-		HIGH_POLLUTION				= 300
+		HIGH_POLLUTION				= 400,
+		DRIVE_FORCE_AMOUNT 			= 2000,
+		JET_FORCE_AMOUNT			= 5000
 	;
 
 	//==== GAME
@@ -67,7 +68,7 @@ RocketBoots.loadComponents([
 			{"keyboard": "Keyboard"},
 			{"physics": "Physics"}
 		],
-		version: "v0.3.0"
+		version: "v0.3.5"
 	});
 
 	g.data = window.data; // from exo-bot-data.js
@@ -76,7 +77,7 @@ RocketBoots.loadComponents([
 		size: {x: BOT_WIDTH, y: BOT_HEIGHT},
 		pos: {x: 0, y: STARTING_Y},
 		color: "#ccccdd",
-		//layerZIndex: 1,
+		layerZIndex: 1,
 		bodyMode: "drive",
 		targetOreDeposit: null,
 		targetBuilding: null,
@@ -135,19 +136,27 @@ RocketBoots.loadComponents([
 		},
 		"intro": {
 			start: function() {
+				let t = [];
 				$('.help, .log, .inventory').addClass('closed');
 				$('.location, .mask').removeClass('closed');
+				$('.log').removeClass('closed');
 				log('Initializing Exo-bot...');
-				log('Waking up systems from hibernation...');
-				log('Destination: Exo-Planet-' + g.dice.getRandomIntegerBetween(999,999999) + '...');
-				log('Landing...');
-				log('Begin mission: Prepare planet for colonization.');
-				var t = window.setTimeout(function(){
-					$('.log').removeClass('closed');
-					var t2 = window.setTimeout(function(){
-						g.state.transition("game");
-					}, WAIT_2);
-				}, WAIT_1);
+				intro(function(){
+					log('Waking up systems from hibernation...');
+					intro(function(){
+						log('Destination: Exo-Planet-' + g.dice.getRandomIntegerBetween(999,999999) + '...');
+						intro(function(){
+							log('Landing...');
+							intro(function(){
+								log('Begin mission: Prepare planet for colonization.');
+								g.state.transition("game");
+							});								
+						});						
+					});
+				});
+				function intro (callback) {
+					t.push(window.setTimeout(callback, WAIT_INTRO));
+				}
 			}, end: function(){
 				$('.location, .mask').addClass('closed');
 			}
@@ -317,8 +326,8 @@ RocketBoots.loadComponents([
 
 		// Setup Physics
 		g.physics.isObjectGravityOn = true;
-		g.physics.elasticity = 0.1;
-		g.physics.gravitationalConstant = 0.7;
+		g.physics.elasticity = 0.7;
+		g.physics.gravitationalConstant = 0.6;
 
 		// Setup bot's inventory
 		g.bot.inventory = {};
@@ -393,10 +402,10 @@ RocketBoots.loadComponents([
 			h += '<div><dt>Pollution</dt><dd>' + Math.floor(g.planet.pollution) + '</dd></div>';
 		}
 		if (g.planet.atmosphere > 0) {
-			h += '<div><dt>Atmosphere</dt><dd>' + Math.floor(g.planet.atmosphere) + '</dd></div>';
+			h += '<div><dt>Atmosphere</dt><dd>' + Math.floor(g.planet.atmosphere) + ' /' + GOAL_ATMOSPHERE + '</dd></div>';
 		}
 		if (g.planet.signal > 0) {
-			h += '<div><dt>Signal</dt><dd>' + Math.floor(g.planet.signal) + '</dd></div>';
+			h += '<div><dt>Signal</dt><dd>' + Math.floor(g.planet.signal) + ' /' + GOAL_SIGNAL + '</dd></div>';
 		}
 		$('.planet-list').html(h);
 
@@ -430,9 +439,14 @@ RocketBoots.loadComponents([
 		var h = '';
 		_.each(g.bot.inventory, function(quantity, key){
 			if (quantity > 0) {
+				let c = "";
+				if (quantity >= BOT_MAX_RESOURCE) {
+					c = "full";
+				}
 				h += (
 					'<div>'
-						+ '<dt>' + key + '</dt><dd>' + Math.floor(quantity) + '</dd>'
+						+ '<dt>' + key + '</dt>'
+						+ '<dd class="' + c + '">' + Math.floor(quantity) + '</dd>'
 					+ '</div>'
 				);
 			}
@@ -453,6 +467,7 @@ RocketBoots.loadComponents([
 				h += '<div><dt>' + key + '</dt><dd>' + amount + '</dd></div>';
 			});
 			h += '</dl></dd>'
+				+ '<dd class="image"><img src="images/buildings/' + building.image + '.png" /></dd>'
 				+ '</div>';
 		});
 		$('.build > dl').html(h);
@@ -695,7 +710,7 @@ RocketBoots.loadComponents([
 	function moveRight () {		move(-1);	}
 	function move (n) {
 		var DRIVE_HEIGHT_TOLERANCE = 2;
-		var forceAmount = 3000 * n;
+		var forceAmount = DRIVE_FORCE_AMOUNT * n;
 		var boost;
 		if (g.bot.bodyMode !== "drive") {
 			return false;
@@ -717,7 +732,7 @@ RocketBoots.loadComponents([
 	}
 
 	function jet (dir) {
-		var forceAmount = 10000;
+		var forceAmount = JET_FORCE_AMOUNT;
 		var boost = (new RocketBoots.Coords(dir)).multiply(forceAmount);
 		g.bot.force.add(boost);
 	}
