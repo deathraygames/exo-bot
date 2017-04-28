@@ -11,7 +11,7 @@ window.data = (function(){
 		"iron": {
 			key: "iron",
 			color: "#585856",
-			depositMultiplier: 1.7
+			depositMultiplier: 1.6
 		},
 		"carbon": {
 			key: "carbon",
@@ -31,20 +31,19 @@ window.data = (function(){
 	};
 	const items = {
 		"metal parts": {
-			key: "metal parts",
-			sources: ["icon"]
+			key: "metal parts"
 		},
 		"solar cells": {
-			key: "solar cells",
-			sources: ["silicon"]
+			key: "solar cells"
 		},
 		"electronics": {
-			key: "electronics",
-			sources: ["gold", "silicon"]
+			key: "electronics"
 		},
 		"energon": {
-			key: "energon",
-			sources: ["carbon"]
+			key: "energon"
+		},
+		"food": {
+			key: "food"
 		}
 	};
 	const buildings = {
@@ -61,12 +60,12 @@ window.data = (function(){
 			},
 			produces: {
 				"metal parts": 1,
-				"pollution": 1
+				"pollution": 0.5
 			}
 		}, 
 		"combustion power plant": {
 			key: "combustion power plant",
-			image: "combustion_factory_80",
+			image: "combustion_power",
 			maxHealth: 100,
 			cost: {
 				"metal parts": 100
@@ -76,12 +75,12 @@ window.data = (function(){
 			},
 			produces: { 
 				"energon": 1,
-				"pollution": 1
+				"pollution": 0.5
 			}
 		},
 		"electronics factory": {
 			key: "electronics factory",
-			image: "generic_80",
+			image: "chip_factory",
 			maxHealth: 80,
 			cost: {
 				"metal parts": 100,
@@ -98,7 +97,7 @@ window.data = (function(){
 		},
 		"solar cell factory": {
 			key: "solar cell factory",
-			image: "generic_80",
+			image: "solar_factory",
 			maxHealth: 100,
 			cost: {
 				"metal parts": 50,
@@ -120,7 +119,7 @@ window.data = (function(){
 			cost: {
 				"metal parts": 50,
 				"solar cells": 100,
-				"electronics": 50
+				"electronics": 100
 			},
 			uses: { 
 				"sunlight": 1 
@@ -131,13 +130,14 @@ window.data = (function(){
 		},
 		"clean metal factory": {
 			key: "clean metal factory",
-			image: "generic_80",
+			image: "metal_factory",
 			maxHealth: 500,
 			cost: {
-				"metal parts": 100
+				"metal parts": 100,
+				"electronics": 50
 			},
 			uses: {
-				"energon": 1,
+				"energon": 2,
 				"iron": 1
 			},
 			produces: {
@@ -146,11 +146,11 @@ window.data = (function(){
 		},
 		"terraformer": {
 			key: "terraformer",
-			image: "generic_80",
+			image: "terraformer",
 			maxHealth: 60,
 			cost: {
 				"metal parts": 200,
-				"electronics": 50,
+				"electronics": 100,
 				"energon": 100
 			},
 			uses: {
@@ -158,24 +158,24 @@ window.data = (function(){
 				"pollution": 1
 			},
 			produces: {
-				"atmosphere": 1
+				"atmosphere": 0.1
 			}
 		},
 		"colonization beacon": {
 			key: "colonization beacon",
-			image: "solar_array_80",
+			image: "beacon",
 			maxHealth: 60,
 			cost: {
 				"metal parts": 100,
-				"electronics": 50,
+				"electronics": 100,
 				"solar cells": 50,
 				"energon": 100
 			},
 			uses: {
-				"energon": 1
+				"energon": 2
 			},
 			produces: {
-				"signal": 1
+				"signal": 0.1
 			}
 		}
 	};
