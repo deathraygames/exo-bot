@@ -7,7 +7,6 @@ RocketBoots.loadComponents([
 	"Loop",
 	"Stage",
 	"World",
-	"Stage",
 	"Storage",
 	"SoundBank",
 	"Keyboard",
