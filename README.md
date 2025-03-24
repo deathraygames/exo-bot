@@ -1,7 +1,10 @@
 # Exo-bot
-Game of robotic exploration, survival, and crafting - for Ludum Dare 38
+***A game of robotic exploration, survival, and crafting - for Ludum Dare 38***
 
-* Most recent version: http://deathraygames.com/play-online/exo-bot/
-* Original Ludum Dare version: http://deathraygames.com/play-online/exo-bot/ld38/
 
-&copy; but open source
+* Play on Github: https://deathraygames.github.io/exo-bot/
+* Or download the repo, make sure you have node installed, and run `npm i` then `npm run serve`
+
+## License
+
+&copy; 2018 ... Code is open source (MIT) ... "Exo-bot" :tm:
